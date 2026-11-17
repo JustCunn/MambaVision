@@ -767,6 +767,7 @@ class MM_mamba_vision(MambaVision):
                  pretrained=None,
                  norm_layer="ln2d",
                  layer_scale=None,
+                 freeze_stages=(),
                  **kwargs):
         MambaVision.__init__(
             self,
@@ -778,6 +779,7 @@ class MM_mamba_vision(MambaVision):
             num_heads=num_heads,
             layer_scale=layer_scale
         )
+        self.freeze_stages = tuple(freeze_stages)
         self.dims = [int(dim * 2 ** i) for i in range(0,4)]
         self.channel_first = True
         _NORMLAYERS = dict(
@@ -796,7 +798,32 @@ class MM_mamba_vision(MambaVision):
         del self.norm
         del self.head
         self.init_weights(pretrained)
+        self._freeze_stages()
 
+    def _freeze_stages(self):
+        if not self.freeze_stages:
+            return
+
+        for stage_index in self.freeze_stages:
+            if stage_index < 0 or stage_index >= len(self.levels):
+                raise ValueError(f'Invalid stage index: {stage_index}')
+
+        for parameter in self.patch_embed.parameters():
+            parameter.requires_grad = False
+
+        for stage_index in self.freeze_stages:
+            for parameter in self.levels[stage_index].parameters():
+                parameter.requires_grad = False
+
+    def train(self, mode=True):
+        super().train(mode)
+
+        if mode and self.freeze_stages:
+            self.patch_embed.eval()
+            for stage_index in self.freeze_stages:
+                self.levels[stage_index].eval()
+
+        return self
 
     def load_pretrained(self, ckpt=None, key="state_dict"):
         if ckpt is None:

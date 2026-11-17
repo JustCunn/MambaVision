@@ -11,6 +11,7 @@ model = dict(
         type='MM_mamba_vision',
         out_indices=(0, 1, 2, 3),
         pretrained="/ckpts/mambavision_tiny_1k.pth.tar",
+        freeze_stages=(0, 1),
         depths = (1, 3, 8, 4),
         num_heads = (2, 4, 8, 16),
         window_size = (8, 8, 64, 32),
